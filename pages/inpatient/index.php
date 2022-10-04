@@ -225,7 +225,48 @@
             <?php
                 require_once('../../include/mysql_connection.php');
                 $stmt = mysqli_stmt_init($connect);
-                $stmt->prepare('SELECT inpatient_id, in_case, doc_id, bed_id FROM inpatient_admission');
+                // pagination 
+                $limit = 8; // objects limit
+                $page = (isset($_GET['page'])) ? (int)$_GET['page']: 1 ; // getting page from post and default 1
+                $startAt = $limit * ($page - 1); 
+                
+                $query = "SELECT COUNT(*) AS total FROM inpatient_admission";
+                $stmt->prepare($query);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                // total pages = ceil( num rows / limit )
+                $Rows = $result->fetch_assoc();
+                $totalRows = $Rows['total'];
+                $totalPages = ceil($totalRows / $limit);
+
+                $links = "";
+                // if pages > ? limit showed page numbers ????????
+                if ($totalPages > 10):
+                    $limitPages = 5;
+                    $awayFromCurrent = ceil($limitPages/2)-1 ;
+                    $start = (int)$page - $awayFromCurrent; //startpage number
+                    $end = (int)$page + $awayFromCurrent;   
+
+                    for ( $i = $start; $i <= $end; $i++)
+                        $links .= "
+                            <li class = 'page-item'>
+                                <a class = 'page-link' href= 'index.php?page=$i'>page $i</a>
+                            </li>" ;
+
+                else:
+                    for ( $i = 1; $i <= $totalPages; $i++ )
+                        $links .= 
+                            "<li class = 'page-item'>
+                                <a class = 'page-link' href = 'index.php?page=$i'>page $i</a>
+                            </li>" ;
+            endif;
+                                
+                $stmt->prepare('SELECT inpatient_id, in_case, doc_id, bed_id 
+                                FROM inpatient_admission
+                                ORDER BY admission_date
+                                LIMIT ?, ?
+                            ');
+                $stmt->bind_param('ii', $startAt, $limit);
                 $stmt->execute();
                 $result = $stmt->get_result();
                 
@@ -290,6 +331,11 @@
                     ?>
                 </tbody>
             </table>
+            <nav aria-label="Page navigation example">
+                <ul class="pagination justify-content-center">
+                    <?php echo $links;?>
+                </ul>
+            </nav>
         </div>
     </div>
     <script src="../../js/bootstrap.min.js"></script>
