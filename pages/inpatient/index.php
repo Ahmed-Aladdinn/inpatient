@@ -228,6 +228,7 @@
                 // pagination 
                 $limit = 3; // objects limit
                 $page = (isset($_GET['page'])) ? (int)$_GET['page']: 1 ; // getting page from post and default 1
+                $page = ($page > 0 ) ? $page : 1; // in case entered wrong url get
                 $startAt = $limit * ($page - 1); 
                 
                 $query = "SELECT COUNT(*) AS total FROM inpatient_admission";
@@ -240,23 +241,35 @@
                 $totalPages = ceil($totalRows / $limit);
 
                 $links = "";
-                // if pages > ? limit showed page numbers ????????
+                // if pages > ? limit showed page numbers 
                 if ($totalPages > 10):
                     $limitPages = 5;
                     $avoidMinus = $limitPages - 2;
                     $awayFromCurrent = ceil($limitPages/2)-1 ;
+
+                    // start navigation bug fixed
                     if ((int)$page < $avoidMinus ):
                         if ( (int)$page == 2 ):
                             $start  = 1;
                             $end    = $limitPages;
                         else:
-
                             $start  = (int)$page;
                             $end    = (int)$page + ($limitPages-1);
                         endif;
                     else:
                         $start = (int)$page - $awayFromCurrent; //startpage number
                         $end = (int)$page + $awayFromCurrent;
+                    endif;
+
+                    // end navigation bug fixed
+                    if ( (int)$page == $totalPages-1 ):
+                        $start  = (int)$page - (3) ;
+                        $end    = $totalPages;
+                    else:
+                        if ( (int)$page == $totalPages ):
+                            $start = (int)$page - ($limitPages - 1);
+                            $end = (int)$page;
+                        endif;
                     endif;
 
                     for ( $i = $start; $i <= $end; $i++)
