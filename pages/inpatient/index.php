@@ -225,7 +225,7 @@
             <?php
                 require_once('../../include/mysql_connection.php');
                 $stmt = mysqli_stmt_init($connect);
-                // pagination 
+                /////////////////// pagination ///////////////////////////////////
                 $limit = 3; // objects limit
                 $page = (isset($_GET['page'])) ? (int)$_GET['page']: 1 ; // getting page from post and default 1
                 $page = ($page > 0 ) ? $page : 1; // in case entered wrong url get
@@ -290,7 +290,7 @@
                                 <a class = 'page-link' href = 'index.php?page=$i'>page $i</a>
                             </li>" ;
             endif;
-                                
+            /////////////////////////////////////////////////////////////////////      
                 $stmt->prepare('SELECT inpatient_id, in_case, doc_id, bed_id 
                                 FROM inpatient_admission
                                 ORDER BY admission_date
