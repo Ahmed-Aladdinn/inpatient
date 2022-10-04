@@ -229,7 +229,6 @@
                 $limit = 3; // objects limit
                 $page = (isset($_GET['page'])) ? (int)$_GET['page']: 1 ; // getting page from post and default 1
                 $page = ($page > 0 ) ? $page : 1; // in case entered wrong url get
-                $startAt = $limit * ($page - 1); 
                 
                 $query = "SELECT COUNT(*) AS total FROM inpatient_admission";
                 $stmt->prepare($query);
@@ -239,6 +238,12 @@
                 $Rows = $result->fetch_assoc();
                 $totalRows = $Rows['total'];
                 $totalPages = ceil($totalRows / $limit);
+                
+                // in case of entered wrong get in url 
+                $page = ($page > $totalPages) ? $totalPages : $page;
+
+                //start returning data at
+                $startAt = $limit * ($page - 1); 
 
                 $links = "";
                 // if pages > ? limit showed page numbers 
@@ -266,7 +271,7 @@
                         $start  = (int)$page - (3) ;
                         $end    = $totalPages;
                     else:
-                        if ( (int)$page == $totalPages ):
+                        if ( (int)$page == $totalPages  ):
                             $start = (int)$page - ($limitPages - 1);
                             $end = (int)$page;
                         endif;
