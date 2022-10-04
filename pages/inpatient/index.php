@@ -226,7 +226,7 @@
                 require_once('../../include/mysql_connection.php');
                 $stmt = mysqli_stmt_init($connect);
                 // pagination 
-                $limit = 8; // objects limit
+                $limit = 3; // objects limit
                 $page = (isset($_GET['page'])) ? (int)$_GET['page']: 1 ; // getting page from post and default 1
                 $startAt = $limit * ($page - 1); 
                 
@@ -243,9 +243,21 @@
                 // if pages > ? limit showed page numbers ????????
                 if ($totalPages > 10):
                     $limitPages = 5;
+                    $avoidMinus = $limitPages - 2;
                     $awayFromCurrent = ceil($limitPages/2)-1 ;
-                    $start = (int)$page - $awayFromCurrent; //startpage number
-                    $end = (int)$page + $awayFromCurrent;   
+                    if ((int)$page < $avoidMinus ):
+                        if ( (int)$page == 2 ):
+                            $start  = 1;
+                            $end    = $limitPages;
+                        else:
+
+                            $start  = (int)$page;
+                            $end    = (int)$page + ($limitPages-1);
+                        endif;
+                    else:
+                        $start = (int)$page - $awayFromCurrent; //startpage number
+                        $end = (int)$page + $awayFromCurrent;
+                    endif;
 
                     for ( $i = $start; $i <= $end; $i++)
                         $links .= "
