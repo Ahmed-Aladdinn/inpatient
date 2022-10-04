@@ -278,17 +278,21 @@
                     endif;
 
                     for ( $i = $start; $i <= $end; $i++)
-                        $links .= "
+                        $links .= ($i != $page ) ? "
                             <li class = 'page-item'>
                                 <a class = 'page-link' href= 'index.php?page=$i'>page $i</a>
-                            </li>" ;
+                            </li>" : "<li class='page-item active' aria-current='page'>
+                                <a class='page-link' href='index.php?page=$i'>page $i</a>
+                          </li>";
 
                 else:
                     for ( $i = 1; $i <= $totalPages; $i++ )
-                        $links .= 
-                            "<li class = 'page-item'>
-                                <a class = 'page-link' href = 'index.php?page=$i'>page $i</a>
-                            </li>" ;
+                        $links .= ($i != $page ) ? "
+                            <li class = 'page-item'>
+                                <a class = 'page-link' href= 'index.php?page=$i'>page $i</a>
+                            </li>" : "<li class='page-item active' aria-current='page'>
+                                <a class='page-link' href='index.php?page=$i'>page $i</a>
+                            </li>";
             endif;
             /////////////////////////////////////////////////////////////////////      
                 $stmt->prepare('SELECT inpatient_id, in_case, doc_id, bed_id 
