@@ -230,9 +230,13 @@
                 require_once('../../include/mysql_connection.php');
                 $stmt = mysqli_stmt_init($connect);
                 /////////////////// pagination ///////////////////////////////////
-                $limit = 5; // objects limit
-                $page = (isset($_GET['page'])) ? (int)$_GET['page']: 1 ; // getting page from post and default 1
-                $page = ($page > 0 ) ? $page : 1; // in case entered wrong url get
+                // objects limit
+                $limit = 5; 
+                // getting page from post and default 1
+                $page = (isset($_GET['page'])) ? (int)$_GET['page']: 1 ; 
+                // in case entered wrong url get
+                $page = ($page > 0 ) ? $page : 1;
+                $startAt = 0;
                 $totalPages = 0; 
 
                 $inpatient_id = [];
@@ -249,6 +253,10 @@
                     $Rows = $result->fetch_assoc();
                     $totalRows = $Rows['total'];
                     $totalPages = ceil($totalRows / $limit);
+                    // in case of entered wrong get in url 
+                    $page = ($page > $totalPages) ? $totalPages : $page;
+                    //start returning data at
+                    $startAt = $limit * ($page - 1); 
                     
                 else:
                     //-----------------if searched-------------------------------
@@ -259,13 +267,22 @@
                     // searching by id
                     if ( is_numeric($inpatientSearch)  ):
                         // getting total search results
-                        $stmt->prepare('SELECT inpatient_id, in_case, doc_id, bed_id FROM inpatient_admission WHERE inpatient_id = ?');
+                        $stmt->prepare('SELECT COUNT(*) AS total FROM inpatient_admission WHERE inpatient_id = ? ');
                         $stmt->bind_param('i', $inpatientSearch);
                         $stmt->execute();
                         $result = $stmt->get_result();
-                        $searchTotal = mysqli_stmt_affected_rows($stmt);
-                        
+                        $searchTotal = $result->fetch_assoc()['total'];
                         $totalPages = ceil($searchTotal / $limit);
+                        // in case of entered wrong get in url 
+                        $page = ($page > $totalPages) ? $totalPages : $page;
+                        //start returning data at
+                        $startAt = $limit * ($page - 1); 
+
+                        $stmt->prepare('SELECT inpatient_id, in_case, doc_id, bed_id FROM inpatient_admission WHERE inpatient_id = ? LIMIT ?, ?');
+                        $stmt->bind_param('iii', $inpatientSearch, $startAt, $limit);
+                        $stmt->execute();
+                        $result = $stmt->get_result();
+                        
                         // getting inpatient id s
                         $i = 0;
                         while ($inpatient = $result->fetch_assoc()) {
@@ -280,25 +297,53 @@
                         //----------------- searchig by name ----------------------
                         //      getting patient id
                         $stmt->prepare('SELECT  DISTINCT id FROM patient WHERE name LIKE ?');
-                        $stmt->bind_param('s', '%'.$inpatientSearch.'%');
+                        $inpatientSearch =  '%'.$inpatientSearch.'%';
+                        $stmt->bind_param('s', $inpatientSearch);
                         $stmt->execute();
-                        $patient_id = $stmt->get_result()->fetch_assoc();
-                        //      getting total search results
-                        $stmt->prepare('SELECT COUNT(inpatient_id) AS total FROM inpatient WHERE p_id = ?');
-                        $stmt->bind_param('i', $patient_id);
+                        $patient_id = $stmt->get_result()->fetch_assoc()['id'];
+                        //       getting inpatient id from patient id
+                        $stmt->prepare('SELECT id FROM inpatient WHERE p_id = ?');
+                        $stmt->bind_param('i',$patient_id);
                         $stmt->execute();
-                        $searchTotal = $stmt->get_result()->fetch_assoc()['total'];
-                        
-                        $totalPages = ceil($searchTotal / $limit);
+                        $result = $stmt->get_result();
+
+                        // foreach inpatient_admission get id
+                        $searchTotal = 0;
+                        while ( $i = $result->fetch_assoc()){
+                            $inpatientID = $i['id'];
+                            $stmt->prepare('SELECT COUNT(*) AS tot FROM inpatient_admission WHERE inpatient_id = ?');
+                            $stmt->bind_param('i', $inpatientID);
+                            $stmt->execute();
+                            $result = $stmt->get_result();
+
+                            $searchTotal += $result->fetch_assoc()['tot'];
+
+                            $totalPages = ceil( $searchTotal / $limit );
+                            // in case of entered wrong get in url 
+                            $page = ($page > $totalPages) ? $totalPages : $page;
+                            //start returning data at
+                            $startAt = $limit * ($page - 1);
+
+                            $stmt->prepare('SELECT in_case, doc_id, bed_id FROM inpatient_admission WHERE inpatient_id = ? LIMIT ?, ?');
+                            $stmt->bind_param('iii', $inpatientID, $startAt, $limit);
+                            $stmt->execute();
+                            $result = $stmt->get_result();
+                            
+                            // getting inpatient id s
+                            $i = 0;
+                            while ($inpatient = $result->fetch_assoc()) {
+                                $inpatient_id[$i] = $inpatientID;
+                                $in_case[$i] = $inpatient['in_case'];
+                                $doc_id[$i] = $inpatient['doc_id'];
+                                $bed_id[$i] = $inpatient['bed_id'];
+                                $i++;
+                            }
+                        }
 
                     endif;
                 endif;
                 
-                // in case of entered wrong get in url 
-                $page = ($page > $totalPages) ? $totalPages : $page;
 
-                //start returning data at
-                $startAt = $limit * ($page - 1); 
 
                 $links = "";
                 // if pages > ? limit showed page numbers 
@@ -333,10 +378,10 @@
                     endif;
                     if ( isset($_GET['search-ipd']) ):
                         //&search-ipd=".$_GET['search-ipd']."
-                        $inpatient_id = array_slice($inpatient_id, $startAt, $limit);  
-                        $in_case = array_slice($in_case, $startAt, $limit);  
-                        $doc_id = array_slice($doc_id, $startAt, $limit);  
-                        $bed_id = array_slice($bed_id, $startAt, $limit);  
+                        // $inpatient_id = array_slice($inpatient_id, $startAt, $limit);  
+                        // $in_case = array_slice($in_case, $startAt, $limit);  
+                        // $doc_id = array_slice($doc_id, $startAt, $limit);  
+                        // $bed_id = array_slice($bed_id, $startAt, $limit);  
                         for ( $i = $start; $i <= $end; $i++)
                             $links .= ($i != $page ) ? "
                                 <li class = 'page-item'>
@@ -357,10 +402,10 @@
 
                 else:
                     if (isset($_GET['search-ipd'])):
-                        $inpatient_id = array_slice($inpatient_id, $startAt, $limit);  
-                        $in_case = array_slice($in_case, $startAt, $limit);  
-                        $doc_id = array_slice($doc_id, $startAt, $limit);  
-                        $bed_id = array_slice($bed_id, $startAt, $limit);
+                        // $inpatient_id = array_slice($inpatient_id, $startAt, $limit);  
+                        // $in_case = array_slice($in_case, $startAt, $limit);  
+                        // $doc_id = array_slice($doc_id, $startAt, $limit);  
+                        // $bed_id = array_slice($bed_id, $startAt, $limit);
                         for ( $i = 1; $i <= $totalPages; $i++ )
                             $links .= ($i != $page ) ? "
                                 <li class = 'page-item'>
