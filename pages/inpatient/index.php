@@ -44,7 +44,11 @@
             padding: 1%;
         }
         .inpatient-table{
-            width:100%;
+            width: 100%;
+            height: 85%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
         .inpatient {
             width: 80%;
@@ -133,7 +137,7 @@
     
         <div class="add-discharge-search">
                 <div class="searchipd">
-                    <form method="post">
+                    <form method="get">
                     <div class="input-group rounded">
                         <input type="search" name = "search-ipd" class="form-control rounded search-input" placeholder="Search Inpatient" aria-label="Search" aria-describedby="search-addon" />
                         <span style = "background-color: #ffffff" class="input-group-text border-0" id="search-addon">
@@ -226,18 +230,69 @@
                 require_once('../../include/mysql_connection.php');
                 $stmt = mysqli_stmt_init($connect);
                 /////////////////// pagination ///////////////////////////////////
-                $limit = 3; // objects limit
+                $limit = 5; // objects limit
                 $page = (isset($_GET['page'])) ? (int)$_GET['page']: 1 ; // getting page from post and default 1
                 $page = ($page > 0 ) ? $page : 1; // in case entered wrong url get
-                
-                $query = "SELECT COUNT(*) AS total FROM inpatient_admission";
-                $stmt->prepare($query);
-                $stmt->execute();
-                $result = $stmt->get_result();
-                // total pages = ceil( num rows / limit )
-                $Rows = $result->fetch_assoc();
-                $totalRows = $Rows['total'];
-                $totalPages = ceil($totalRows / $limit);
+                $totalPages = 0; 
+
+                $inpatient_id = [];
+                $in_case = [];
+                $doc_id = [];
+                $bed_id = [];
+
+                if ( !isset($_GET['search-ipd']) ):
+                    $query = "SELECT COUNT(*) AS total FROM inpatient_admission";
+                    $stmt->prepare($query);
+                    $stmt->execute();
+                    $result = $stmt->get_result();
+                    // total pages = ceil( num rows / limit )
+                    $Rows = $result->fetch_assoc();
+                    $totalRows = $Rows['total'];
+                    $totalPages = ceil($totalRows / $limit);
+                    
+                else:
+                    //-----------------if searched-------------------------------
+
+                    $inpatientSearch = strip_tags($_GET['search-ipd']);
+                    
+                    //------------- Search by ( id / name ) ---------------------
+                    // searching by id
+                    if ( is_numeric($inpatientSearch)  ):
+                        // getting total search results
+                        $stmt->prepare('SELECT inpatient_id, in_case, doc_id, bed_id FROM inpatient_admission WHERE inpatient_id = ?');
+                        $stmt->bind_param('i', $inpatientSearch);
+                        $stmt->execute();
+                        $result = $stmt->get_result();
+                        $searchTotal = mysqli_stmt_affected_rows($stmt);
+                        
+                        $totalPages = ceil($searchTotal / $limit);
+                        // getting inpatient id s
+                        $i = 0;
+                        while ($inpatient = $result->fetch_assoc()) {
+                            $inpatient_id[$i] = $inpatient['inpatient_id'];
+                            $in_case[$i] = $inpatient['in_case'];
+                            $doc_id[$i] = $inpatient['doc_id'];
+                            $bed_id[$i] = $inpatient['bed_id'];
+                            $i++;
+                        }
+
+                    else:
+                        //----------------- searchig by name ----------------------
+                        //      getting patient id
+                        $stmt->prepare('SELECT  DISTINCT id FROM patient WHERE name LIKE ?');
+                        $stmt->bind_param('s', '%'.$inpatientSearch.'%');
+                        $stmt->execute();
+                        $patient_id = $stmt->get_result()->fetch_assoc();
+                        //      getting total search results
+                        $stmt->prepare('SELECT COUNT(inpatient_id) AS total FROM inpatient WHERE p_id = ?');
+                        $stmt->bind_param('i', $patient_id);
+                        $stmt->execute();
+                        $searchTotal = $stmt->get_result()->fetch_assoc()['total'];
+                        
+                        $totalPages = ceil($searchTotal / $limit);
+
+                    endif;
+                endif;
                 
                 // in case of entered wrong get in url 
                 $page = ($page > $totalPages) ? $totalPages : $page;
@@ -247,7 +302,7 @@
 
                 $links = "";
                 // if pages > ? limit showed page numbers 
-                if ($totalPages > 10):
+                if ($totalPages > 6):
                     $limitPages = 5;
                     $avoidMinus = $limitPages - 2;
                     $awayFromCurrent = ceil($limitPages/2)-1 ;
@@ -276,33 +331,72 @@
                             $end = (int)$page;
                         endif;
                     endif;
+                    if ( isset($_GET['search-ipd']) ):
+                        //&search-ipd=".$_GET['search-ipd']."
+                        $inpatient_id = array_slice($inpatient_id, $startAt, $limit);  
+                        $in_case = array_slice($in_case, $startAt, $limit);  
+                        $doc_id = array_slice($doc_id, $startAt, $limit);  
+                        $bed_id = array_slice($bed_id, $startAt, $limit);  
+                        for ( $i = $start; $i <= $end; $i++)
+                            $links .= ($i != $page ) ? "
+                                <li class = 'page-item'>
+                                    <a class = 'page-link' href= 'index.php?page=$i&search-ipd=".$_GET['search-ipd']."'>page $i</a>
+                                </li>" : "<li class='page-item active' aria-current='page'>
+                                    <a class='page-link' href='index.php?page=$i&search-ipd=".$_GET['search-ipd']."'>page $i</a>
+                              </li>";
+                    else:
+                        for ( $i = $start; $i <= $end; $i++)
+                            $links .= ($i != $page ) ? "
+                                <li class = 'page-item'>
+                                    <a class = 'page-link' href= 'index.php?page=$i'>page $i</a>
+                                </li>" : "<li class='page-item active' aria-current='page'>
+                                    <a class='page-link' href='index.php?page=$i'>page $i</a>
+                                </li>";
 
-                    for ( $i = $start; $i <= $end; $i++)
-                        $links .= ($i != $page ) ? "
-                            <li class = 'page-item'>
-                                <a class = 'page-link' href= 'index.php?page=$i'>page $i</a>
-                            </li>" : "<li class='page-item active' aria-current='page'>
-                                <a class='page-link' href='index.php?page=$i'>page $i</a>
-                          </li>";
+                    endif;
 
                 else:
-                    for ( $i = 1; $i <= $totalPages; $i++ )
-                        $links .= ($i != $page ) ? "
-                            <li class = 'page-item'>
-                                <a class = 'page-link' href= 'index.php?page=$i'>page $i</a>
-                            </li>" : "<li class='page-item active' aria-current='page'>
-                                <a class='page-link' href='index.php?page=$i'>page $i</a>
-                            </li>";
-            endif;
-            /////////////////////////////////////////////////////////////////////      
-                $stmt->prepare('SELECT inpatient_id, in_case, doc_id, bed_id 
-                                FROM inpatient_admission
-                                ORDER BY admission_date
-                                LIMIT ?, ?
-                            ');
-                $stmt->bind_param('ii', $startAt, $limit);
-                $stmt->execute();
-                $result = $stmt->get_result();
+                    if (isset($_GET['search-ipd'])):
+                        $inpatient_id = array_slice($inpatient_id, $startAt, $limit);  
+                        $in_case = array_slice($in_case, $startAt, $limit);  
+                        $doc_id = array_slice($doc_id, $startAt, $limit);  
+                        $bed_id = array_slice($bed_id, $startAt, $limit);
+                        for ( $i = 1; $i <= $totalPages; $i++ )
+                            $links .= ($i != $page ) ? "
+                                <li class = 'page-item'>
+                                    <a class = 'page-link' href= 'index.php?page=$i&search-ipd=".$_GET['search-ipd']."'>page $i</a>
+                                </li>" : "<li class='page-item active' aria-current='page'>
+                                    <a class='page-link' href='index.php?page=$i&search-ipd=".$_GET['search-ipd']."'>page $i</a>
+                                </li>";
+                    else:
+                        for ( $i = 1; $i <= $totalPages; $i++ )
+                            $links .= ($i != $page ) ? "
+                                <li class = 'page-item'>
+                                    <a class = 'page-link' href= 'index.php?page=$i'>page $i</a>
+                                </li>" : "<li class='page-item active' aria-current='page'>
+                                    <a class='page-link' href='index.php?page=$i'>page $i</a>
+                                </li>";
+                    endif;
+                endif;
+            /////////////////////////////////////////////////////////////////////  
+                if (!isset($_GET['search-ipd'])):
+                    $stmt->prepare('SELECT inpatient_id, in_case, doc_id, bed_id 
+                                    FROM inpatient_admission
+                                    ORDER BY admission_date
+                                    LIMIT ?, ?
+                                ');
+                    $stmt->bind_param('ii', $startAt, $limit);
+                    $stmt->execute();
+                    $result = $stmt->get_result();
+                    $i = 0;
+                    while ($inpatient = $result->fetch_assoc()){
+                        $inpatient_id[$i] = $inpatient['inpatient_id'];
+                        $in_case[$i] = $inpatient['in_case'];
+                        $doc_id[$i] = $inpatient['doc_id'];
+                        $bed_id[$i] = $inpatient['bed_id'];
+                        $i++;
+                    }
+                endif;
                 
             ?>
             <table class="table">
@@ -319,9 +413,12 @@
                 </thead>
                 <tbody>
                     <?php
-                        while($in = $result->fetch_assoc()){
+                        // while($in = $result->fetch_assoc()){
+                        if ( !empty($inpatient_id) )
+                            $i = 0;
+                        foreach ($inpatient_id as $index=>$id) {
                             $stmt->prepare('SELECT p_id FROM inpatient WHERE id = ?');
-                            $stmt->bind_param('i',$in['inpatient_id']);
+                            $stmt->bind_param('i',$id);
                             $stmt->execute();
                             $res = $stmt->get_result();
                             $patient = $res->fetch_assoc();
@@ -337,30 +434,31 @@
                             $p_phone = $patient['phone'];
 
                             $stmt->prepare("SELECT CONCAT(firstname, ' ', surname) AS name FROM doctors WHERE id = ?");
-                            $stmt->bind_param('i', $in['doc_id']);
+                            $stmt->bind_param('i', $doc_id[$i]);
                             $stmt->execute();
                             $res = $stmt->get_result();
                             $doc = $res->fetch_assoc();
                             $docName = $doc['name'];
 
                             $stmt->prepare("SELECT CONCAT( bed_type, ' ', bed_group, ' ', name) AS bedName FROM bed WHERE id = ?");
-                            $stmt->bind_param('i', $in['bed_id']);
+                            $stmt->bind_param('i', $bed_id[$i]);
                             $stmt->execute();
                             $res = $stmt->get_result();
                             $bed = $res->fetch_assoc();
                             $bedName = $bed['bedName'];
 
                     ?>
-                        <tr>
-                        <th scope="row"><?php echo $in['inpatient_id']; ?></th>
-                        <td><?php echo $in['in_case']; ?></td>
-                        <td><?php echo $p_name; ?></td>
-                        <td><?php echo $p_gender; ?></td>
-                        <td><?php echo $p_phone; ?></td>
-                        <td><?php echo $docName; ?></td>
-                        <td><?php echo $bedName; ?></td>
-                        </tr>
+                            <tr>
+                                <th scope="row"><?php echo $id; ?></th>
+                                <td><?php echo $in_case[$i]; ?></td>
+                                <td><?php echo $p_name; ?></td>
+                                <td><?php echo $p_gender; ?></td>
+                                <td><?php echo $p_phone; ?></td>
+                                <td><?php echo $docName; ?></td>
+                                <td><?php echo $bedName; ?></td>
+                            </tr>
                     <?php
+                            $i++;
                         }
                     ?>
                 </tbody>
