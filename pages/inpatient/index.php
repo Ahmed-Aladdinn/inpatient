@@ -137,7 +137,7 @@
     
         <div class="add-discharge-search">
                 <div class="searchipd">
-                    <form method="get">
+                    <form method="get" id = 'search-ipd'>
                     <div class="input-group rounded">
                         <input type="search" name = "search-ipd" class="form-control rounded search-input" placeholder="Search Inpatient" aria-label="Search" aria-describedby="search-addon" />
                         <span style = "background-color: #ffffff" class="input-group-text border-0" id="search-addon">
@@ -225,7 +225,7 @@
                 
         </div>
 
-        <div class="inpatient-table">
+        <div class="inpatient-table" >
             <?php
                 require_once('../../include/mysql_connection.php');
                 $stmt = mysqli_stmt_init($connect);
@@ -237,7 +237,7 @@
                 // in case entered wrong url get
                 $page = ($page > 0 ) ? $page : 1;
                 $startAt = 0;
-                $totalPages = 0; 
+                $totalPages = 0;
 
                 $inpatient_id = [];
                 $in_case = [];
@@ -265,88 +265,92 @@
                     
                     //------------- Search by ( id / name ) ---------------------
                     // searching by id
-                    if ( is_numeric($inpatientSearch)  ):
-                        // getting total search results
-                        $stmt->prepare('SELECT COUNT(*) AS total FROM inpatient_admission WHERE inpatient_id = ? ');
-                        $stmt->bind_param('i', $inpatientSearch);
-                        $stmt->execute();
-                        $result = $stmt->get_result();
-                        $searchTotal = $result->fetch_assoc()['total'];
-                        if ($searchTotal >= 1):
-                            $totalPages = ceil($searchTotal / $limit);
-                            // in case of entered wrong get in url 
-                            $page = ($page > $totalPages) ? $totalPages : $page;
-                            //start returning data at
-                            $startAt = $limit * ($page - 1); 
-
-                            $stmt->prepare('SELECT inpatient_id, in_case, doc_id, bed_id FROM inpatient_admission WHERE inpatient_id = ? LIMIT ?, ?');
-                            $stmt->bind_param('iii', $inpatientSearch, $startAt, $limit);
-                            $stmt->execute();
-                            $result = $stmt->get_result();
-                            
-                            // getting inpatient id s
-                            $i = 0;
-                            while ($inpatient = $result->fetch_assoc()) {
-                                $inpatient_id[$i] = $inpatient['inpatient_id'];
-                                $in_case[$i] = $inpatient['in_case'];
-                                $doc_id[$i] = $inpatient['doc_id'];
-                                $bed_id[$i] = $inpatient['bed_id'];
-                                $i++;
-                            }
-
-                        else:
-                            echo "<script>alert('Your search has got no result.(Enter valid admission ID)');</script>";
-                        endif;
+                    if( empty($inpatientSearch) ):
+                        echo "<script> alert('Search was empty.'); </script>";
                     else:
-                        //----------------- searchig by name ----------------------
-                        //      getting patient id
-                        $stmt->prepare('SELECT  DISTINCT id FROM patient WHERE name LIKE ?');
-                        $inpatientSearch =  '%'.$inpatientSearch.'%';
-                        $stmt->bind_param('s', $inpatientSearch);
-                        $stmt->execute();
-                        if ( $p = $stmt->get_result()->fetch_assoc() ):
-                            $patient_id = $p['id'];
-                            //       getting inpatient id from patient id
-                            $stmt->prepare('SELECT id FROM inpatient WHERE p_id = ?');
-                            $stmt->bind_param('i',$patient_id);
+                        if ( is_numeric($inpatientSearch)  ):
+                            // getting total search results
+                            $stmt->prepare('SELECT COUNT(*) AS total FROM inpatient_admission WHERE inpatient_id = ? ');
+                            $stmt->bind_param('i', $inpatientSearch);
                             $stmt->execute();
                             $result = $stmt->get_result();
-
-                            // foreach inpatient_admission get id
-                            $searchTotal = 0;
-                            while ( $i = $result->fetch_assoc()){
-                                $inpatientID = $i['id'];
-                                $stmt->prepare('SELECT COUNT(*) AS tot FROM inpatient_admission WHERE inpatient_id = ?');
-                                $stmt->bind_param('i', $inpatientID);
-                                $stmt->execute();
-                                $result = $stmt->get_result();
-
-                                $searchTotal += $result->fetch_assoc()['tot'];
-
-                                $totalPages = ceil( $searchTotal / $limit );
+                            $searchTotal = $result->fetch_assoc()['total'];
+                            if ($searchTotal >= 1):
+                                $totalPages = ceil($searchTotal / $limit);
                                 // in case of entered wrong get in url 
                                 $page = ($page > $totalPages) ? $totalPages : $page;
                                 //start returning data at
-                                $startAt = $limit * ($page - 1);
+                                $startAt = $limit * ($page - 1); 
 
-                                $stmt->prepare('SELECT in_case, doc_id, bed_id FROM inpatient_admission WHERE inpatient_id = ? LIMIT ?, ?');
-                                $stmt->bind_param('iii', $inpatientID, $startAt, $limit);
+                                $stmt->prepare('SELECT inpatient_id, in_case, doc_id, bed_id FROM inpatient_admission WHERE inpatient_id = ? LIMIT ?, ?');
+                                $stmt->bind_param('iii', $inpatientSearch, $startAt, $limit);
                                 $stmt->execute();
                                 $result = $stmt->get_result();
                                 
                                 // getting inpatient id s
                                 $i = 0;
                                 while ($inpatient = $result->fetch_assoc()) {
-                                    $inpatient_id[$i] = $inpatientID;
+                                    $inpatient_id[$i] = $inpatient['inpatient_id'];
                                     $in_case[$i] = $inpatient['in_case'];
                                     $doc_id[$i] = $inpatient['doc_id'];
                                     $bed_id[$i] = $inpatient['bed_id'];
                                     $i++;
                                 }
-                            }
-                        
+
+                            else:
+                                echo "<script>alert('Your search has got no result.(Enter valid admission ID)');</script>";
+                            endif;
                         else:
-                            echo "<script>alert('Your search has got no result.(Enter valid name)');</script>";
+                            //----------------- searchig by name ----------------------
+                            //      getting patient id
+                            $stmt->prepare('SELECT  DISTINCT id FROM patient WHERE name LIKE ?');
+                            $inpatientSearch =  '%'.$inpatientSearch.'%';
+                            $stmt->bind_param('s', $inpatientSearch);
+                            $stmt->execute();
+                            if ( $p = $stmt->get_result()->fetch_assoc() ):
+                                $patient_id = $p['id'];
+                                //       getting inpatient id from patient id
+                                $stmt->prepare('SELECT id FROM inpatient WHERE p_id = ?');
+                                $stmt->bind_param('i',$patient_id);
+                                $stmt->execute();
+                                $result = $stmt->get_result();
+
+                                // foreach inpatient_admission get id
+                                $searchTotal = 0;
+                                while ( $i = $result->fetch_assoc()){
+                                    $inpatientID = $i['id'];
+                                    $stmt->prepare('SELECT COUNT(*) AS tot FROM inpatient_admission WHERE inpatient_id = ?');
+                                    $stmt->bind_param('i', $inpatientID);
+                                    $stmt->execute();
+                                    $result = $stmt->get_result();
+
+                                    $searchTotal += $result->fetch_assoc()['tot'];
+
+                                    $totalPages = ceil( $searchTotal / $limit );
+                                    // in case of entered wrong get in url 
+                                    $page = ($page > $totalPages) ? $totalPages : $page;
+                                    //start returning data at
+                                    $startAt = $limit * ($page - 1);
+
+                                    $stmt->prepare('SELECT in_case, doc_id, bed_id FROM inpatient_admission WHERE inpatient_id = ? LIMIT ?, ?');
+                                    $stmt->bind_param('iii', $inpatientID, $startAt, $limit);
+                                    $stmt->execute();
+                                    $result = $stmt->get_result();
+                                    
+                                    // getting inpatient id s
+                                    $i = 0;
+                                    while ($inpatient = $result->fetch_assoc()) {
+                                        $inpatient_id[$i] = $inpatientID;
+                                        $in_case[$i] = $inpatient['in_case'];
+                                        $doc_id[$i] = $inpatient['doc_id'];
+                                        $bed_id[$i] = $inpatient['bed_id'];
+                                        $i++;
+                                    }
+                                }
+                            
+                            else:
+                                echo "<script>alert('Your search has got no result.(Enter valid name)');</script>";
+                            endif;
                         endif;
                     endif;
                 endif;
@@ -516,11 +520,13 @@
                     ?>
                 </tbody>
             </table>
+
             <nav aria-label="Page navigation example">
                 <ul class="pagination justify-content-center">
                     <?php echo $links;?>
                 </ul>
             </nav>
+
         </div>
     </div>
     <script src="../../js/bootstrap.min.js"></script>

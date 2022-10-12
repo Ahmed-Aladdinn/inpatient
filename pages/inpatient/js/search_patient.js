@@ -5,6 +5,12 @@ $(document).ready(function() {
         // getTime();
         return false;
     });
+    // $("#search-ipd").submit(function(event) {
+    //     searchIPD();
+    //     // getTime();
+    //     return false;
+    // });
+
     // $("#inpatientForm").submit(function(event) {
     //     //sendDate();
     // });
@@ -31,6 +37,23 @@ function getTime() {
     var n = h + ':' + m;
     document.getElementById("appointment_time").defaultValue = '18:00';
 }
+
+// function searchIPD() {
+//     $.ajax({
+//         type: "GET",
+//         url: "search_ipd.php",
+//         cache: false,
+//         data: $('form#search-ipd').serialize(),
+//         success: function(response) {
+//             $("#inpatient-table").html(response);
+//         },
+//         error: function() {
+//             alert("Error");
+//         }
+//     });
+// }
+
+
 
 function submitForm() {
     $.ajax({
